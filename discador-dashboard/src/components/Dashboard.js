@@ -1,83 +1,242 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+import CampaignPerformanceChart from './CampaignPerformanceChart';
+import CallStatusDistributionChart from './CallStatusDistributionChart';
+import AgentPerformanceChart from './AgentPerformanceChart';
+import AgentActivityChart from './AgentActivityChart';
+import CallTypePerformanceChart from './CallTypePerformanceChart';
+import ASRActivationChart from './ASRActivationChart';
+import LoggedCampaignChart from './LoggedCampaignChart';
+import CampaignQualificationsChart from './CampaignQualificationsChart';
 
 const Dashboard = () => {
-  const [routes, setRoutes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [campaigns, setCampaigns] = useState([]);
+  const [callStats, setCallStats] = useState({
+    answered: 0,
+    not_answered: 0,
+    abandoned: 0,
+    failed: 0
+  });
+  const [agentMetrics, setAgentMetrics] = useState([]);
+  const [agentActivity, setAgentActivity] = useState([]);
+  const [callTypePerformance, setCallTypePerformance] = useState([]);
+  const [asrActivation, setAsrActivation] = useState([]);
+  const [loggedCampaign, setLoggedCampaign] = useState({});
+  const [campaignQualifications, setCampaignQualifications] = useState([]);
 
-  useEffect(() => {
-    const fetchRoutes = async () => {
-      try {
-        const response = await axios.get('https://3c.fluxoti.com/api/v1/routes', {
-          headers: {
-            Authorization: `Bearer ${process.env.REACT_APP_API_TOKEN}`,
-          },
-        });
-        setRoutes(response.data.data);
-        setLoading(false);
-      } catch (error) {
-        setError(`Erro ao buscar as rotas: ${error.message}`);
-        setLoading(false);
-      }
-    };
+  const token = process.env.REACT_APP_API_TOKEN;
 
-    fetchRoutes();
-  }, []);
+  if (!token) {
+    console.error('Token de autenticação não encontrado');
+    return null;
+  }
 
-  const data = {
-    labels: routes.map(route => route.name),
-    datasets: [
-      {
-        label: 'Cadence',
-        data: routes.map(route => route['telephony-rates'][0].cadence),
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        borderWidth: 1,
-      },
-    ],
+  const fetchCampaigns = async () => {
+    try {
+      const response = await axios.get('https://3c.fluxoti.com/api/v1/campaigns', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log('Resposta das campanhas:', response.data);
+      setCampaigns(response.data.data);
+      return response.data.data;
+    } catch (error) {
+      console.error('Erro ao buscar campanhas:', error.response ? error.response.data : error.message);
+      return [];
+    }
   };
 
-  if (loading) {
-    return <p>Carregando...</p>;
-  }
+  const fetchCallStats = async () => {
+    try {
+      const response = await axios.get('https://3c.fluxoti.com/api/v1/routes', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log('Resposta das estatísticas de chamadas:', response.data);
+      setCallStats({
+        answered: 100,
+        not_answered: 50,
+        abandoned: 20,
+        failed: 10
+      });
+    } catch (error) {
+      console.error('Erro ao buscar estatísticas de chamadas:', error.response ? error.response.data : error.message);
+    }
+  };
 
-  if (error) {
-    return <p>{error}</p>;
-  }
+  const fetchAgentMetrics = async (campaignId) => {
+    try {
+      const today = new Date();
+      const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
+      const endDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 23:59:59`;
+
+      console.log('Parâmetros de data (Agent Metrics):', { startDate, endDate });
+
+      const response = await axios.get(`https://3c.fluxoti.com/api/v1/campaigns/${campaignId}/agents/metrics/total`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          startDate: startDate,
+          endDate: endDate
+        }
+      });
+      console.log('Resposta das métricas de agentes:', response.data);
+      setAgentMetrics(response.data.data);
+    } catch (error) {
+      console.error('Erro ao buscar métricas de agentes:', error.response ? error.response.data : error.message);
+    }
+  };
+
+  const fetchAgentActivity = async (campaignId) => {
+    try {
+      const today = new Date();
+      const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
+      const endDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 23:59:59`;
+
+      console.log('Parâmetros de data (Agent Activity):', { startDate, endDate });
+
+      const response = await axios.get(`https://3c.fluxoti.com/api/v1/campaigns/${campaignId}/agents/metrics`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          startDate: startDate,
+          endDate: endDate
+        }
+      });
+      console.log('Resposta das atividades dos agentes:', response.data);
+      setAgentActivity(response.data.data);
+    } catch (error) {
+      console.error('Erro ao buscar atividades dos agentes:', error.response ? error.response.data : error.message);
+    }
+  };
+
+  const fetchCallTypePerformance = async (campaignId) => {
+    try {
+      const today = new Date();
+      const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
+      const endDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 23:59:59`;
+
+      console.log('Parâmetros de data (Call Type Performance):', { startDate, endDate });
+
+      const response = await axios.get(`https://3c.fluxoti.com/api/v1/campaigns/${campaignId}/calls`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          startDate: startDate,
+          endDate: endDate
+        }
+      });
+      console.log('Resposta do desempenho por tipo de chamada:', response.data);
+      setCallTypePerformance(response.data.data);
+    } catch (error) {
+      console.error('Erro ao buscar desempenho por tipo de chamada:', error.response ? error.response.data : error.message);
+    }
+  };
+
+  const fetchAsrActivation = async (campaignId) => {
+    try {
+      const today = new Date();
+      const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
+      const endDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 23:59:59`;
+
+      console.log('Parâmetros de data (ASR Activation):', { startDate, endDate });
+
+      const response = await axios.get(`https://3c.fluxoti.com/api/v1/campaigns/${campaignId}/statistics`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          startDate: startDate,
+          endDate: endDate
+        }
+      });
+      console.log('Resposta da ativação de ASR:', response.data);
+      setAsrActivation(response.data.data);
+    } catch (error) {
+      console.error('Erro ao buscar ativação de ASR:', error.response ? error.response.data : error.message);
+    }
+  };
+
+  const fetchLoggedCampaign = async () => {
+    const now = new Date();
+    const currentHour = now.getHours();
+
+    if (currentHour >= 9 && currentHour <= 17) {
+      try {
+        const response = await axios.get('https://3c.fluxoti.com/api/v1/agent/loggedCampaign', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        console.log('Resposta da campanha logada:', response.data);
+        setLoggedCampaign(response.data);
+      } catch (error) {
+        console.error('Erro ao buscar campanha logada:', error.response ? error.response.data : error.message);
+      }
+    } else {
+      console.log('Agentes não estão logados fora do horário de expediente.');
+    }
+  };
+
+  const fetchCampaignQualifications = async (campaignId) => {
+    try {
+      const today = new Date();
+      const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
+      const endDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 23:59:59`;
+
+      console.log('Parâmetros de data (Campaign Qualifications):', { startDate, endDate });
+
+      const response = await axios.get(`https://3c.fluxoti.com/api/v1/campaigns/${campaignId}/qualifications/total`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          startDate: startDate,
+          endDate: endDate
+        }
+      });
+      console.log('Resposta das qualificações das campanhas:', response.data);
+      setCampaignQualifications(response.data.data);
+    } catch (error) {
+      console.error('Erro ao buscar qualificações das campanhas:', error.response ? error.response.data : error.message);
+    }
+  };
+
+  useEffect(() => {
+    const initializeDashboard = async () => {
+      const campaigns = await fetchCampaigns();
+      if (campaigns.length > 0) {
+        const campaignId = campaigns[0].id;
+        await fetchAgentMetrics(campaignId);
+        await fetchAgentActivity(campaignId);
+        await fetchCallTypePerformance(campaignId);
+        await fetchAsrActivation(campaignId);
+        await fetchCampaignQualifications(campaignId);
+      }
+      await fetchCallStats();
+      await fetchLoggedCampaign();
+    };
+
+    initializeDashboard();
+  }, []);
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-      <div className="grid grid-cols-1 gap-4">
-        {routes.map(route => (
-          <div key={route.id} className="bg-white p-4 rounded shadow">
-            <h2 className="text-xl font-semibold">{route.name}</h2>
-            <p className="text-gray-700">Endpoint: {route.endpoint}</p>
-            <p className="text-gray-700">Route: {route.route}</p>
-            <p className="text-gray-700">Uses Country Code: {route.uses_country_code ? 'Yes' : 'No'}</p>
-            <p className="text-gray-700">Allow Mobile: {route.allow_mobile ? 'Yes' : 'No'}</p>
-            <p className="text-gray-700">Allow Landline: {route.allow_landline ? 'Yes' : 'No'}</p>
-            <h3 className="text-lg font-semibold mt-2">Telephony Rates:</h3>
-            {route['telephony-rates'].map(rate => (
-              <div key={rate.id} className="bg-gray-100 p-2 rounded mt-1">
-                <p className="text-gray-700">Minimum Duration: {rate.minimum_duration}</p>
-                <p className="text-gray-700">Minimum Duration Charged: {rate.minimum_duration_charged}</p>
-                <p className="text-gray-700">Cadence: {rate.cadence}</p>
-                <p className="text-gray-700">Type: {rate.type}</p>
-                <p className="text-gray-700">Value: {rate.value}</p>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-      <div className="bg-white p-4 rounded shadow mt-4">
-        <h2 className="text-xl font-semibold mb-2">Cadence per Route</h2>
-        <Bar data={data} />
+      <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <CampaignPerformanceChart campaigns={campaigns} />
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <CallStatusDistributionChart callStats={callStats} />
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <AgentPerformanceChart agentMetrics={agentMetrics} />
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <AgentActivityChart agentActivity={agentActivity} />
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <CallTypePerformanceChart callTypePerformance={callTypePerformance} />
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <ASRActivationChart asrActivation={asrActivation} />
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <LoggedCampaignChart loggedCampaign={loggedCampaign} />
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <CampaignQualificationsChart campaignQualifications={campaignQualifications} />
+        </div>
       </div>
     </div>
   );
