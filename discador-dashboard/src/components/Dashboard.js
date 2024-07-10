@@ -78,7 +78,11 @@ const Dashboard = () => {
         }
       });
       console.log('Resposta das métricas de agentes:', response.data);
-      setAgentMetrics(response.data.data);
+      if (Array.isArray(response.data.data)) {
+        setAgentMetrics(prevMetrics => [...prevMetrics, ...response.data.data]);
+      } else {
+        console.error('Dados das métricas de agentes não são um array:', response.data.data);
+      }
     } catch (error) {
       console.error('Erro ao buscar métricas de agentes:', error.response ? error.response.data : error.message);
     }
@@ -89,9 +93,9 @@ const Dashboard = () => {
       const today = new Date();
       const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 00:00:00`;
       const endDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')} 23:59:59`;
-
+  
       console.log('Parâmetros de data (Agent Activity):', { startDate, endDate });
-
+  
       const response = await axios.get(`https://3c.fluxoti.com/api/v1/campaigns/${campaignId}/agents/metrics`, {
         headers: { Authorization: `Bearer ${token}` },
         params: {
@@ -100,11 +104,18 @@ const Dashboard = () => {
         }
       });
       console.log('Resposta das atividades dos agentes:', response.data);
-      setAgentActivity(response.data.data);
+  
+      if (response.data && response.data.data) {
+        setAgentActivity(response.data.data);
+      } else {
+        console.error('Resposta inesperada da API ao buscar atividades dos agentes:', response.data);
+        setAgentActivity([]);
+      }
     } catch (error) {
       console.error('Erro ao buscar atividades dos agentes:', error.response ? error.response.data : error.message);
     }
   };
+  
 
   const fetchCallTypePerformance = async (campaignId) => {
     try {
@@ -212,7 +223,7 @@ const Dashboard = () => {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
         <div className="bg-white p-4 rounded-lg shadow-md">
           <CampaignPerformanceChart campaigns={campaigns} />
         </div>
